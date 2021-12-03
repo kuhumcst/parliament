@@ -1,0 +1,5 @@
+{:paths ["src" "resources"]
+ :deps  {org.clojure/clojure  {:mvn/version "1.11.0-alpha3"}
+         org.clojure/data.csv {:mvn/version "1.0.0"}
+         kuhumcst/tf-idf      {:git/url "https://github.com/kuhumcst/tf-idf.git"
+                               :sha     "c4ab2299789cd2caaeeeac0612882370f00e5813"}}}
