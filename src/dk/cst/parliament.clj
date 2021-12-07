@@ -4,7 +4,8 @@
             [clojure.string :as str]
             [clojure.data.csv :as csv]
             [clojure.set :as set]
-            [dk.cst.tf-idf :as tf-idf]))
+            [dk.cst.tf-idf :as tf-idf]
+            [scicloj.sklearn-clj :as sklearn]))
 
 (def parliament-stopwords
   #{"ordfører"
