@@ -1,10 +1,11 @@
 {:paths   ["src" "resources"]
- :deps    {org.clojure/clojure  {:mvn/version "1.11.0-alpha3"}
-           org.clojure/data.csv {:mvn/version "1.0.0"}
-           kuhumcst/tf-idf      {:git/url "https://github.com/kuhumcst/tf-idf.git"
-                                 :sha     "c4ab2299789cd2caaeeeac0612882370f00e5813"}
-           scicloj/sklearn-clj  {:git/url "git@github.com:scicloj/sklearn-clj.git"
-                                 :sha     "056a71776129f368b88cc2137b31477c5f541092"}}
+ :deps    {org.clojure/clojure        {:mvn/version "1.11.0-alpha3"}
+           org.clojure/data.csv       {:mvn/version "1.0.0"}
+           kuhumcst/tf-idf            {:git/url "https://github.com/kuhumcst/tf-idf.git"
+                                       :sha     "c4ab2299789cd2caaeeeac0612882370f00e5813"}
+           techascent/tech.ml.dataset {:mvn/version "6.035"}
+           scicloj/sklearn-clj        {:git/url "git@github.com:scicloj/sklearn-clj.git"
+                                       :sha     "056a71776129f368b88cc2137b31477c5f541092"}}
  :aliases {:development {:extra-paths ["dev/src"]}
 
            ;; Needed for libpython-clj when on JDK-17.

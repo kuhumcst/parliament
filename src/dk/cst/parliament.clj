@@ -4,8 +4,9 @@
             [clojure.string :as str]
             [clojure.data.csv :as csv]
             [clojure.set :as set]
-            [dk.cst.tf-idf :as tf-idf]
-            [scicloj.sklearn-clj :as sklearn]))
+            [tech.v3.dataset :as ds]
+            [scicloj.sklearn-clj :as sklearn]
+            [dk.cst.tf-idf :as tf-idf]))
 
 (def parliament-stopwords
   #{"ordfører"
@@ -45,7 +46,42 @@
         files      (remove directory? (file-seq root-dir))]
     (mapcat (comp rest #(apply csv/read-csv % options) io/reader) files)))
 
+;; Some of the birthdates in the dataset are provided as yyyy-dd-MM.
+(defn- fix-danish-date-format
+  [s]
+  (when s
+    (if (re-matches #"0\d|1(0|1|2)" (subs s 5 7))
+      s
+      (str (subs s 0 5) (subs s 8 10) (subs s 4 7)))))
+
+(defn load-csv-maps
+  [dir-path & options]
+  (let [root-dir   (io/file dir-path)
+        directory? (fn [file] (.isDirectory file))
+        files      (remove directory? (file-seq root-dir))
+        read-rows  (comp #(apply csv/read-csv % options) io/reader)
+        columns    (->> (mapcat read-rows files)
+                        (take 1)
+                        (first)
+                        (map (comp keyword #(str/replace % #"\s" "-"))))
+        ->map      (comp #(update % :Birth fix-danish-date-format)
+                         (partial zipmap columns))]
+    (mapcat (comp (partial map ->map)
+                  rest
+                  read-rows)
+            files)))
+
 (comment
+  (def ds
+    (-> (io/resource "parliament/lemmatized")
+        (load-csv-maps :separator \tab)
+        (ds/->dataset {:parser-fn {:Birth      [:local-date "yyyy-MM-dd"]
+                                   :Start-time :local-time
+                                   :Date       [:local-date "yyyy-MM-dd"]
+                                   :End-time   :local-time
+                                   :Time       :int64
+                                   :Age        :int64}})))
+
   ;; Parliament corpus data (lazy-loaded)
   (def documents-raw
     (map last (load-csv (io/resource "parliament/raw") :separator \tab)))
