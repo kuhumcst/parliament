@@ -3,8 +3,10 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.data.csv :as csv]
+            [clojure.data.json :as json]
             [clojure.set :as set]
             [tech.v3.dataset :as ds]
+            [libpython-clj2.python :as py]
             [scicloj.sklearn-clj :as sklearn]
             [dk.cst.tf-idf :as tf-idf]))
 
@@ -46,13 +48,18 @@
         files      (remove directory? (file-seq root-dir))]
     (mapcat (comp rest #(apply csv/read-csv % options) io/reader) files)))
 
+(defonce bad-dates
+  (atom #{}))
+
 ;; Some of the birthdates in the dataset are provided as yyyy-dd-MM.
 (defn- fix-danish-date-format
   [s]
   (when s
     (if (re-matches #"0\d|1(0|1|2)" (subs s 5 7))
       s
-      (str (subs s 0 5) (subs s 8 10) (subs s 4 7)))))
+      (do
+        (swap! bad-dates conj s)
+        (str (subs s 0 5) (subs s 8 10) (subs s 4 7))))))
 
 (defn load-csv-maps
   [dir-path & options]
@@ -71,16 +78,48 @@
                   read-rows)
             files)))
 
+(def parse-methods
+  {:Birth      [:int64 (fn [s] (parse-long (subs s 0 4)))]
+   #_#_:Start-time :local-time
+   #_#_:Date       [:local-date "yyyy-MM-dd"]
+   #_#_:End-time   :local-time
+   :Time       :int64
+   :Age        :int64})
+
+(defn ->ds
+  [dir]
+  (-> (load-csv-maps dir :separator \tab)
+      (ds/->dataset {:parser-fn parse-methods})
+      (vary-meta assoc :print-column-max-width 20)))
+
+(defn ->vocab-map
+  "Make a bridged Python dict of the vocabulary of `documents` limited by `n`;
+  follows format prescribed by e.g. sklearn CountVectorizer or TfidfVectorizer."
+  [documents n]
+  (-> (tf-idf/vocab documents n)
+      (zipmap (range))))
+
 (comment
+
+  (spit "resources/parliament/vocabulary.json" (json/write-str (->vocab-map documents 3)))
+
+
+  (def vocab-dict
+    (->vocab-dict documents 3))
+
+  (sklearn/fit (ds/select ds [:Lemma] :all) "sklearn.feature_extraction.text" "CountVectorizer")
+
+  (def fitted
+    (-> (ds/select ds [:Lemma] :all)
+        (ds/filter (comp some? :Lemma))
+        (sklearn/fit-transform "sklearn.feature_extraction.text" "CountVectorizer" {:vocabulary vocab-dict})))
+
+  (py/py. fitted toarray)
+
   (def ds
-    (-> (io/resource "parliament/lemmatized")
-        (load-csv-maps :separator \tab)
-        (ds/->dataset {:parser-fn {:Birth      [:local-date "yyyy-MM-dd"]
-                                   :Start-time :local-time
-                                   :Date       [:local-date "yyyy-MM-dd"]
-                                   :End-time   :local-time
-                                   :Time       :int64
-                                   :Age        :int64}})))
+    (->ds (io/resource "parliament/lemmatized")))
+
+  (ds/write! ds "resources/parliament/data.csv")
 
   ;; Parliament corpus data (lazy-loaded)
   (def documents-raw
